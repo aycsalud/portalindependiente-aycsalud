@@ -77,8 +77,6 @@
           <button id="deleteDocs" class="btn">Borrar documentos</button>
         </div>
         <p class="muted small">
-          Nota: los archivos y mensajes se almacenan en este navegador (localStorage).
-          Para producción real se recomienda un backend y base de datos.
         </p>
       </div>
     </section>
@@ -97,7 +95,7 @@
     // Inicializar EmailJS (reemplaza con tu PUBLIC KEY real)
     (function(){
       try{
-        emailjs.init(ld-Q078gooyIFtQHS);
+        emailjs.init("ld-Q078gooyIFtQHS");
       }catch(e){
         console.warn("EmailJS no inicializado aún. Configura TU_PUBLIC_KEY_AQUI.");
       }
@@ -114,7 +112,7 @@
       };
       // Reemplaza service_xxx y template_xxx por los tuyos
       try{
-        emailjs.send(service_4y6cz2j, template_isgdgpl, params);
+        emailjs.send("service_4y6cz2j", "template_isgdgpl", params);
       }catch(e){
         console.warn("Error al intentar enviar correo", e);
       }
