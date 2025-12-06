@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AYC Portal - Dashboard</title>
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+  <!-- Logo pequeño y elegante en dashboard -->
+  <img src="ayc_logo.png" class="logo-corner" alt="AYC Salud" />
+
+  <main class="container">
+    <header class="brand small">
+      <div class="logo txt">AYC Salud</div>
+      <p class="tag">Portal de Profesionales Independientes</p>
+    </header>
+
+    <section class="card welcome-card">
+      <h2>Hola, <span id="nombre"></span> 👋</h2>
+      <p>Tu servicio: <strong id="servicio"></strong></p>
+      <p>Categoría: <strong id="categoria"></strong></p>
+      <div class="status-row">
+        <div class="pill">Estado: <span id="estado"></span></div>
+        <div class="pill">Última actualización: <span id="fecha"></span></div>
+      </div>
+    </section>
+
+    <section class="card common-info">
+      <h3>Información general</h3>
+      <div id="announcement" class="announcement">Cargando...</div>
+      <button id="refresh" class="btn">Refrescar</button>
+    </section>
+
+    <section class="card docs">
+      <h3>Documentos</h3>
+      <div id="docsArea">Aquí verás los archivos asignados a ti.</div>
+    </section>
+
+    <section id="adminPanel" class="card admin" style="display:none">
+      <h3>Panel administrador</h3>
+
+      <div class="subcard">
+        <h4>Mensaje global</h4>
+        <label for="globalMsg">Mensaje para todos los usuarios</label>
+        <textarea id="globalMsg" rows="3" placeholder="Escribe un aviso general..."></textarea>
+        <div class="actions">
+          <button id="saveMsg" class="btn primary">Guardar / Enviar</button>
+          <button id="deleteGlobalMsg" class="btn">Borrar mensaje global</button>
+        </div>
+      </div>
+
+      <div class="subcard">
+        <h4>Mensaje dirigido</h4>
+        <label for="msgTarget">Enviar mensaje a:</label>
+        <select id="msgTarget">
+          <option value="all">Todos los usuarios</option>
+        </select>
+        <label for="targetMsg">Contenido del mensaje</label>
+        <textarea id="targetMsg" rows="3" placeholder="Mensaje personalizado..."></textarea>
+        <div class="actions">
+          <button id="saveTargetMsg" class="btn primary">Enviar mensaje</button>
+          <button id="deleteTargetMsg" class="btn">Borrar mensaje(s)</button>
+        </div>
+      </div>
+
+      <div class="subcard">
+        <h4>Gestión de documentos</h4>
+        <label for="fileUpload">Seleccionar archivo</label>
+        <input id="fileUpload" type="file" />
+        <label for="fileTarget">Enviar archivo a:</label>
+        <select id="fileTarget">
+          <option value="all">Todos los usuarios</option>
+        </select>
+        <div class="actions">
+          <button id="uploadFileBtn" class="btn primary">Subir archivo</button>
+          <button id="deleteDocs" class="btn">Borrar documentos</button>
+        </div>
+        <p class="muted small">
+          Nota: los archivos y mensajes se almacenan en este navegador (localStorage).
+          Para producción real se recomienda un backend y base de datos.
+        </p>
+      </div>
+    </section>
+
+    <div class="actions bottom">
+      <button id="logout" class="btn">Cerrar sesión</button>
+    </div>
+
+    <footer class="footer">AYC Salud · Portal local</footer>
+  </main>
+
+  <script src="clientes.js"></script>
+  <!-- EmailJS SDK: para notificaciones por correo -->
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script>
+    // Inicializar EmailJS (reemplaza con tu PUBLIC KEY real)
+    (function(){
+      try{
+        emailjs.init(ld-Q078gooyIFtQHS);
+      }catch(e){
+        console.warn("EmailJS no inicializado aún. Configura TU_PUBLIC_KEY_AQUI.");
+      }
+    })();
+
+    // Utilidad: enviar correo usando EmailJS
+    function enviarCorreo(userObj, asunto, contenido){
+      if(!userObj || !userObj.correo) return; // si no tiene correo, no hacemos nada
+      const params = {
+        to_name: userObj.nombre || userObj.usuario,
+        to_email: userObj.correo,
+        subject: asunto,
+        message: contenido
+      };
+      // Reemplaza service_xxx y template_xxx por los tuyos
+      try{
+        emailjs.send(service_4y6cz2j, template_isgdgpl, params);
+      }catch(e){
+        console.warn("Error al intentar enviar correo", e);
+      }
+    }
+
+    // Cargar usuario actual
+    const raw = sessionStorage.getItem('currentUser');
+    if(!raw){
+      alert('No has iniciado sesión. Serás redirigido al login.');
+      window.location.href = 'index.html';
+    }
+    const user = JSON.parse(raw);
+
+    document.getElementById('nombre').innerText = user.nombre;
+    document.getElementById('servicio').innerText = user.servicio;
+    document.getElementById('categoria').innerText = user.categoria || '---';
+    document.getElementById('estado').innerText = user.estado || '---';
+    document.getElementById('fecha').innerText = user.ultima || '---';
+
+    // Mostrar mensaje global
+    function showAnnouncement(){
+      const msg = localStorage.getItem('globalAnnouncement') || '<em>No hay noticias.</em>';
+      document.getElementById('announcement').innerHTML = msg;
+    }
+    showAnnouncement();
+
+    document.getElementById('refresh').addEventListener('click', showAnnouncement);
+
+    // Mostrar panel admin si rol es admin
+    if(user.role === 'admin'){
+      document.getElementById('adminPanel').style.display = 'block';
+      document.getElementById('globalMsg').value = localStorage.getItem('globalAnnouncement') || '';
+    }
+
+    // Logout
+    document.getElementById('logout').addEventListener('click', ()=>{
+      sessionStorage.removeItem('currentUser');
+      window.location.href = 'index.html';
+    });
+
+    // Poblar selects de usuarios (para mensajes y archivos)
+    const selUsersForMsg = document.getElementById('msgTarget');
+    const selUsersForFiles = document.getElementById('fileTarget');
+
+    CLIENTES.forEach(c=>{
+      if(c.role !== 'admin'){
+        const op1 = document.createElement('option');
+        op1.value = c.usuario;
+        op1.textContent = c.nombre + " (" + c.usuario + ")";
+        selUsersForMsg.appendChild(op1);
+
+        const op2 = document.createElement('option');
+        op2.value = c.usuario;
+        op2.textContent = c.nombre + " (" + c.usuario + ")";
+        selUsersForFiles.appendChild(op2);
+      }
+    });
+
+    // Guardar / enviar mensaje global
+    document.getElementById('saveMsg')?.addEventListener('click', ()=>{
+      const val = document.getElementById('globalMsg').value.trim();
+      if(!val){
+        alert("Escribe un mensaje primero.");
+        return;
+      }
+      localStorage.setItem('globalAnnouncement', val);
+      showAnnouncement();
+      alert('Mensaje global guardado y enviado.');
+
+      // Enviar notificación por correo a todos los usuarios (si tienen correo)
+      CLIENTES.forEach(c=>{
+        if(c.role !== 'admin'){
+          enviarCorreo(c, 'Nuevo aviso en tu portal AYC Salud', val);
+        }
+      });
+    });
+
+    // Borrar mensaje global
+    document.getElementById('deleteGlobalMsg')?.addEventListener('click', ()=>{
+      if(!confirm("¿Seguro que deseas borrar el mensaje global?")) return;
+      localStorage.removeItem('globalAnnouncement');
+      showAnnouncement();
+      alert("Mensaje global borrado.");
+    });
+
+    // Guardar/enviar mensaje dirigido
+    document.getElementById('saveTargetMsg')?.addEventListener('click', ()=>{
+      const target = document.getElementById('msgTarget').value;
+      const msg = document.getElementById('targetMsg').value.trim();
+      if(!msg){
+        alert("Escribe un mensaje primero.");
+        return;
+      }
+
+      let store = JSON.parse(localStorage.getItem('personalMsgs') || '{}');
+
+      if(target === "all"){
+        CLIENTES.forEach(c=>{
+          if(c.role !== "admin"){
+            store[c.usuario] = msg;
+            enviarCorreo(c, 'Nuevo mensaje en tu portal AYC Salud', msg);
+          }
+        });
+      } else {
+        store[target] = msg;
+        const userTarget = CLIENTES.find(c => c.usuario === target);
+        enviarCorreo(userTarget, 'Nuevo mensaje en tu portal AYC Salud', msg);
+      }
+
+      localStorage.setItem('personalMsgs', JSON.stringify(store));
+      alert("Mensaje(s) enviado(s).");
+    });
+
+    // Borrar mensaje(s) dirigidos
+    document.getElementById('deleteTargetMsg')?.addEventListener('click', ()=>{
+      const target = document.getElementById('msgTarget').value;
+      let store = JSON.parse(localStorage.getItem('personalMsgs') || '{}');
+
+      if(target === "all"){
+        if(!confirm("Esto borrará los mensajes personales de TODOS los usuarios. ¿Continuar?")) return;
+        CLIENTES.forEach(c=>{
+          if(c.role !== "admin") delete store[c.usuario];
+        });
+      } else {
+        if(!confirm("Esto borrará el mensaje personal del usuario seleccionado. ¿Continuar?")) return;
+        delete store[target];
+      }
+
+      localStorage.setItem('personalMsgs', JSON.stringify(store));
+      alert("Mensaje(s) borrado(s).");
+    });
+
+    // Mostrar mensaje dirigido al usuario (si existe)
+    (function showPersonalMsg(){
+      const store = JSON.parse(localStorage.getItem('personalMsgs') || '{}');
+      if(store[user.usuario]){
+        document.getElementById('announcement').innerHTML =
+          "<strong>Mensaje para ti:</strong><br>" + store[user.usuario];
+      }
+    })();
+
+    // Subir archivo(s)
+    document.getElementById('uploadFileBtn')?.addEventListener('click', ()=>{
+      const file = document.getElementById('fileUpload').files[0];
+      const target = document.getElementById('fileTarget').value;
+
+      if(!file){
+        alert("Selecciona un archivo.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(){
+        let stored = JSON.parse(localStorage.getItem('docsStorage') || '{}');
+
+        function pushTo(u){
+          if(!stored[u]) stored[u] = [];
+          stored[u].push({ name: file.name, data: reader.result });
+        }
+
+        if(target === "all"){
+          CLIENTES.forEach(c=>{
+            if(c.role !== "admin"){
+              pushTo(c.usuario);
+              enviarCorreo(c, 'Nuevo documento en tu portal AYC Salud', 'Se te ha asignado el documento: ' + file.name);
+            }
+          });
+        } else {
+          pushTo(target);
+          const userTarget = CLIENTES.find(c => c.usuario === target);
+          enviarCorreo(userTarget, 'Nuevo documento en tu portal AYC Salud', 'Se te ha asignado el documento: ' + file.name);
+        }
+
+        localStorage.setItem('docsStorage', JSON.stringify(stored));
+        alert("Archivo subido y notificaciones enviadas (si EmailJS está configurado).");
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Borrar documentos
+    document.getElementById('deleteDocs')?.addEventListener('click', ()=>{
+      const target = document.getElementById('fileTarget').value;
+      let stored = JSON.parse(localStorage.getItem('docsStorage') || '{}');
+
+      if(target === "all"){
+        if(!confirm("Esto eliminará TODOS los documentos para todos los usuarios. ¿Continuar?")) return;
+        CLIENTES.forEach(c=>{
+          if(c.role !== "admin") delete stored[c.usuario];
+        });
+      } else {
+        if(!confirm("Esto eliminará todos los documentos del usuario seleccionado. ¿Continuar?")) return;
+        delete stored[target];
+      }
+
+      localStorage.setItem('docsStorage', JSON.stringify(stored));
+      alert("Documentos eliminados.");
+    });
+
+    // Mostrar documentos del usuario en su tarjeta
+    (function loadDocs(){
+      const area = document.getElementById('docsArea');
+      const stored = JSON.parse(localStorage.getItem('docsStorage') || '{}');
+      const userDocs = stored[user.usuario] || [];
+
+      if(userDocs.length === 0){
+        area.innerHTML = "<em>No tienes documentos por ahora.</em>";
+        return;
+      }
+
+      area.innerHTML = "";
+      userDocs.forEach(doc=>{
+        const a = document.createElement('a');
+        a.href = doc.data;
+        a.download = doc.name;
+        a.textContent = "📄 " + doc.name;
+        a.style.display = "block";
+        a.style.marginBottom = "8px";
+        area.appendChild(a);
+      });
+    })();
+  </script>
+</body>
+</html>

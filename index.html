@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AYC Portal - Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+  <!-- Logo grande en login -->
+  <img src="ayc_logo.png" class="logo-login" alt="AYC Salud" />
+
+  <main class="container">
+    <header class="brand">
+      <div class="logo txt">AYC Salud</div>
+      <p class="tag">Portal de Profesionales Independientes</p>
+    </header>
+
+    <section class="card login-card">
+      <h1>Acceso</h1>
+      <p class="lead">Inicia sesión con tu usuario. No se permiten registros nuevos.</p>
+
+      <form id="loginForm">
+        <label for="user">Usuario</label>
+        <input id="user" autocomplete="username" required />
+
+        <label for="pass">Contraseña</label>
+        <input id="pass" type="password" autocomplete="current-password" required />
+
+        <button class="btn primary" type="submit">Entrar</button>
+      </form>
+
+      <p class="muted">Si tienes problemas, contacta a AYC Salud.</p>
+    </section>
+
+    <section class="card info-card">
+      <h2>¿Eres administrador?</h2>
+      <p>Ingresa con tus credenciales especiales (definidas en <code>clientes.js</code>).</p>
+    </section>
+
+    <footer class="footer">Diseñado para AYC Salud · Portal local</footer>
+  </main>
+
+  <script src="clientes.js"></script>
+  <script>
+    const form = document.getElementById('loginForm');
+    form.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const user = document.getElementById('user').value.trim();
+      const pass = document.getElementById('pass').value.trim();
+      const found = CLIENTES.find(c => c.usuario === user && c.pass === pass);
+      if(found){
+        sessionStorage.setItem('currentUser', JSON.stringify(found));
+        window.location.href = 'dashboard.html';
+      } else {
+        alert('Usuario o contraseña incorrecta.');
+      }
+    });
+  </script>
+</body>
+</html>
